@@ -5,19 +5,19 @@
 
 FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS build
 WORKDIR /source
+EXPOSE 80
+EXPOSE 8080
 
 # copy csproj and restore as distinct layers
-COPY *.sln .
-COPY SampleApp/*.csproj ./SampleApp/
+COPY *.csproj .
 RUN dotnet restore
 
-# copy everything else and build app
-COPY SampleApp/. ./SampleApp/
-WORKDIR /source/SampleApp
+# copy and publish app and libraries
+COPY . .
 RUN dotnet publish -c release -o /app --no-restore
 
 # final stage/image
-FROM mcr.microsoft.com/dotnet/core/aspnet:3.1
+FROM mcr.microsoft.com/dotnet/core/runtime:3.1
 WORKDIR /app
-COPY --from=build /app ./
+COPY --from=build /app .
 ENTRYPOINT ["dotnet", "SampleApp.dll"]
