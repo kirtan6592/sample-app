@@ -3,23 +3,21 @@
 #Depending on the operating system of the host machines(s) that will build or run the containers, the image specified in the FROM statement may need to be changed.
 #For more information, please see https://aka.ms/containercompat
 
-FROM mcr.microsoft.com/dotnet/core/aspnet:3.1-nanoserver-1903 AS base
+FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS build
+WORKDIR /source
+
+# copy csproj and restore as distinct layers
+COPY *.sln .
+COPY SampleApp/*.csproj ./SampleApp/
+RUN dotnet restore
+
+# copy everything else and build app
+COPY SampleApp/. ./SampleApp/
+WORKDIR /source/SampleApp
+RUN dotnet publish -c release -o /app --no-restore
+
+# final stage/image
+FROM mcr.microsoft.com/dotnet/core/aspnet:3.1
 WORKDIR /app
-EXPOSE 80
-EXPOSE 443
-
-FROM mcr.microsoft.com/dotnet/core/sdk:3.1-nanoserver-1903 AS build
-WORKDIR /src
-COPY ["SampleApp.csproj", ""]
-RUN dotnet restore "./SampleApp.csproj"
-COPY . .
-WORKDIR "/src/."
-RUN dotnet build "SampleApp.csproj" -c Release -o /app/build
-
-FROM build AS publish
-RUN dotnet publish "SampleApp.csproj" -c Release -o /app/publish
-
-FROM base AS final
-WORKDIR /app
-COPY --from=publish /app/publish .
+COPY --from=build /app ./
 ENTRYPOINT ["dotnet", "SampleApp.dll"]
